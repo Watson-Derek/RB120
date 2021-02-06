@@ -53,6 +53,12 @@ class Player
     @moves = []
   end
 
+  def move
+    moves.last
+  end
+
+  private
+
   def move_choices(choice)
     return Rock.new(choice) if choice == 'rock'
     return Paper.new(choice) if choice == 'paper'
@@ -60,18 +66,28 @@ class Player
     return Lizard.new(choice) if choice == 'lizard'
     return Spock.new(choice) if choice == 'spock'
   end
-
-  def move
-    moves.last
-  end
 end
 
 class Human < Player
+  def choose
+    choice = nil
+    loop do
+      puts "Please choose #{Move::VALUE_OPTIONS[0..-2].join(', ')}, " \
+      "or #{Move::VALUE_OPTIONS[-1]}:"
+      choice = choice_convert(gets.chomp.downcase)
+      break if Move::VALUES.include? choice
+      puts "Sorry, invalid choice."
+    end
+    moves << move_choices(choice)
+  end
+
+  private
+
   def set_name
     n = ''
     loop do
       puts "What's your name?"
-      n = gets.chomp
+      n = gets.chomp.strip
       break unless n.empty?
       puts "Sorry, must enter a value."
     end
@@ -86,18 +102,6 @@ class Human < Player
     return 'spock' if str == 'sp'
     str
   end
-
-  def choose
-    choice = nil
-    loop do
-      puts "Please choose #{Move::VALUE_OPTIONS[0..-2].join(', ')}, " \
-      "or #{Move::VALUE_OPTIONS[-1]}:"
-      choice = choice_convert(gets.chomp.downcase)
-      break if Move::VALUES.include? choice
-      puts "Sorry, invalid choice."
-    end
-    moves << move_choices(choice)
-  end
 end
 
 class Computer < Player
@@ -106,6 +110,8 @@ class Computer < Player
   def choose
     moves << move_choices(computer_choose(weighted(Move::VALUES, weights)))
   end
+
+  private
 
   def computer_choose(array)
     r = rand(0.0..1.0)
@@ -137,6 +143,8 @@ class R2d2 < Computer
     @description = "is a big fan of rocks"
   end
 
+  private
+
   def set_name
     self.name = 'R2D2'
   end
@@ -148,6 +156,8 @@ class Hal < Computer
     @weights = [0.05, 0.0, 0.75, 0.1, 0.1]
     @description = "really likes to cut things"
   end
+
+  private
 
   def set_name
     self.name = 'Hal'
@@ -161,6 +171,8 @@ class Chappie < Computer
     @description = "doesn't really have any favorite stuff"
   end
 
+  private
+
   def set_name
     self.name = 'Chappie'
   end
@@ -173,6 +185,8 @@ class Sonny < Computer
     @description = "loves lizards but doesn't like people from other planets"
   end
 
+  private
+
   def set_name
     self.name = 'Sonny'
   end
@@ -184,6 +198,8 @@ class Number5 < Computer
     @weights = [0.05, 0.45, 0.025, 0.025, 0.45]
     @description = "really likes to read and likes people that are logical"
   end
+
+  private
 
   def set_name
     self.name = 'Number 5'
@@ -201,17 +217,51 @@ class RPSGame
     @@rounds = nil
   end
 
+  def play
+    display_welcome_message_1
+    @@rounds = set_total_rounds
+    main_loop
+    display_goodbye_message
+  end
+
+  private
+
+  def main_game
+    reset_scores
+    loop do
+      human.choose
+      computer.choose
+      clear_screen
+      display_moves
+      display_winner
+      break if human.score == @@rounds || computer.score == @@rounds
+      display_running_scores
+    end
+  end
+
+  def main_loop
+    loop do
+      display_welcome_message_2
+      main_game
+      clear_screen
+      display_moves
+      display_grand_winner
+      break unless play_again?
+    end
+  end
+
   def clear_screen
     system("clear")
   end
 
   def yes_no?
+    answer = ''
     loop do
       answer = gets.chomp.downcase
-      return true if answer == 'y' || answer == 'yes'
-      return false if answer == 'n' || answer == 'no'
-      puts "Invalid response, please enter 'y' or 'n':"
+      break if ['y', 'yes', 'n', 'no'].include?(answer)
+      puts "Invalid response, please enter y/yes or n/no."
     end
+    answer.start_with?('y')
   end
 
   def display_rules
@@ -236,12 +286,13 @@ class RPSGame
   end
 
   def set_total_rounds
-    puts "How many rounds will it take to win? Enter a number to play to:"
+    puts "How many rounds will it take to win?\n" \
+         "Enter a number to play to between 1 and 10:"
     answer = nil
     loop do
       answer = gets.chomp.to_i
-      break if answer.is_a?(Integer)
-      puts "Not a valid input, please enter an integer:"
+      break if answer >= 1 && answer <= 10
+      puts "Not a valid input, please enter an integer between 1 and 10:"
     end
 
     answer
@@ -262,9 +313,7 @@ class RPSGame
   end
 
   def display_goodbye_message
-    puts "Thanks for playing #{Move::VALUES.join(', ')}!\n" \
-         "\n" \
-         "Would you like to see the final move list? (y/n)"
+    puts "Would you like to see the final move list? (y/n)"
 
     if yes_no?
       puts "\n" \
@@ -272,7 +321,7 @@ class RPSGame
            "#{computer.name} moves: #{computer.moves.map(&:to_s)}"
     end
 
-    puts "\nGood bye!"
+    puts "\nThanks for playing #{Move::VALUES.join(', ')}! Good bye!"
   end
 
   def display_moves
@@ -305,7 +354,7 @@ class RPSGame
     puts
   end
 
-  def human_win
+  def display_human_win
     puts "Congratulations #{human.name}! You have beaten #{computer.name}!\n" \
          "\n" \
          "Final Score:\n" \
@@ -315,7 +364,7 @@ class RPSGame
          "\n"
   end
 
-  def computer_win
+  def display_computer_win
     puts "Sorry! #{computer.name} has won!\n" \
          "\n" \
          "Final Score:\n" \
@@ -327,46 +376,15 @@ class RPSGame
 
   def display_grand_winner
     if human.score > computer.score
-      human_win
+      display_human_win
     else
-      computer_win
+      display_computer_win
     end
   end
 
   def play_again?
     puts "Would you like to play again? (y/n)"
     yes_no?
-  end
-
-  def main_game
-    reset_scores
-    loop do
-      human.choose
-      computer.choose
-      clear_screen
-      display_moves
-      display_winner
-      break if human.score == @@rounds || computer.score == @@rounds
-      display_running_scores
-    end
-  end
-
-  def main_loop
-    loop do
-      display_welcome_message_2
-      main_game
-      clear_screen
-      display_moves
-      display_grand_winner
-      break unless play_again?
-    end
-  end
-
-  def play
-    display_welcome_message_1
-    @@rounds = set_total_rounds
-    main_loop
-    display_goodbye_message
   end
 end
 
